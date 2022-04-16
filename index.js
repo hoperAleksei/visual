@@ -130,7 +130,7 @@ function fixed_thresholding(ctx, ctx_res, m=255){
         for (let x = 0; x < ctx.canvas.height; x++) {
             let c = getcolor(x,y,ctx)
 
-            if (c[0]+c[1]+c[2] < m) {
+            if (c[0] < m) {
                 // console.log(c[0]+c[1]+c[2])
                 dot(x, y, ctx_res)
             }
@@ -148,7 +148,7 @@ function random_thresholding(ctx, ctx_res){
         for (let x = 0; x < ctx.canvas.height; x++) {
             let c = getcolor(x,y,ctx)
 
-            if (c[0]+c[1]+c[2] < Math.floor(Math.random()*255*3)) {
+            if (c[0] < Math.floor(Math.random()*255*3)) {
                 // console.log(c[0]+c[1]+c[2])
                 dot(x, y, ctx_res)
             }
@@ -157,6 +157,134 @@ function random_thresholding(ctx, ctx_res){
             }
         }
     }
+}
+
+function ordered_dither(ctx, ctx_res){
+    let mx = [[0, 2], [3, 1]]
+
+    for (let y = 0; y < ctx.canvas.width; y++) {
+        for (let x = 0; x < ctx.canvas.height; x++) {
+            let c = getcolor(x,y,ctx)
+
+            if (c[0] * 5 / 256 > mx[y%2][x%2]) {
+                // console.log(c[0]+c[1]+c[2])
+                dot(x,y,ctx_res,[255,255,255,255])
+            }
+            else {
+                dot(x, y, ctx_res)
+            }
+        }
+    }
+
+}
+
+function error_diffusion(ctx,ctx_res, alg=0){
+    /*
+    * 0 - Floyd-Steinberg
+    * 1 - Jarvice, Judice, Ninke
+    * 2 - False Floyd-Steinberg
+    * 3 - Stucki
+    * 4 - Burkes
+    * 5 - Frankie Sierra (1/32)
+    * 6 - Frankie Sierra (1/16)
+    * 7 - Frankie Sierra (1/4)
+    *
+    * */
+    for (let y = 0; y < ctx.canvas.height; y++) {
+        for (let x = 0; x < ctx.canvas.width; x++) {
+            let c = getcolor(x, y, ctx)
+            let n = c.map((x) => (Math.round(x / 255) === 1 ? 255 : 0))
+            n[3] = 255
+            dot(x, y, ctx_res, n)
+
+            let e = [c[0] - n[0], c[1] - n[1], c[2] - n[2], 255]
+            if (alg === 0) {
+                dot(x + 1, y, ctx_res, getcolor(x + 1, y, ctx).map((o, i) => (i === 3 ? 255 : o + e[i] * 7 / 16)))
+                dot(x - 1, y + 1, ctx_res, getcolor(x - 1, y + 1, ctx).map((o, i) => (i === 3 ? 255 : o + e[i] * 3 / 16)))
+                dot(x, y + 1, ctx_res, getcolor(x, y + 1, ctx).map((o, i) => (i === 3 ? 255 : o + e[i] * 5 / 16)))
+                dot(x + 1, y + 1, ctx_res, getcolor(x + 1, y + 1, ctx).map((o, i) => (i === 3 ? 255 : o + e[i] * 1 / 16)))
+            }
+            else if (alg = 1) {
+                dot(x + 1, y, ctx_res, getcolor(x+1, y, ctx).map((o, i)=>(i===3 ? 255 : o + e[i] * 7/48)))
+                dot(x + 2, y, ctx_res, getcolor(x+2, y, ctx).map((o, i)=>(i===3 ? 255 : o + e[i] * 5/48)))
+
+                dot(x - 2, y+1, ctx_res, getcolor(x-2, y+1, ctx).map((o, i)=>(i===3 ? 255 : o + e[i] * 3/48)))
+                dot(x - 1, y+1, ctx_res, getcolor(x-1, y+1, ctx).map((o, i)=>(i===3 ? 255 : o + e[i] * 5/48)))
+                dot(x, y+1, ctx_res, getcolor(x, y+1, ctx).map((o, i)=>(i===3 ? 255 : o + e[i] * 7/48)))
+                dot(x + 1, y+1, ctx_res, getcolor(x+1, y+1, ctx).map((o, i)=>(i===3 ? 255 : o + e[i] * 5/48)))
+                dot(x + 2, y+1, ctx_res, getcolor(x+2, y+1, ctx).map((o, i)=>(i===3 ? 255 : o + e[i] * 3/48)))
+
+                dot(x - 2, y+2, ctx_res, getcolor(x-2, y+2, ctx).map((o, i)=>(i===3 ? 255 : o + e[i] * 1/48)))
+                dot(x - 1, y+2, ctx_res, getcolor(x-1, y+2, ctx).map((o, i)=>(i===3 ? 255 : o + e[i] * 3/48)))
+                dot(x, y+2, ctx_res, getcolor(x, y+2, ctx).map((o, i)=>(i===3 ? 255 : o + e[i] * 5/48)))
+                dot(x + 1, y+2, ctx_res, getcolor(x+1, y+2, ctx).map((o, i)=>(i===3 ? 255 : o + e[i] * 3/48)))
+                dot(x + 2, y+2, ctx_res, getcolor(x+2, y+2, ctx).map((o, i)=>(i===3 ? 255 : o + e[i] * 1/48)))
+            }
+            else if (alg === 2) {
+                dot(x + 1, y, ctx_res, getcolor(x + 1, y, ctx).map((o, i) => (i === 3 ? 255 : o + e[i] * 3 / 8)))
+                dot(x, y + 1, ctx_res, getcolor(x, y + 1, ctx).map((o, i) => (i === 3 ? 255 : o + e[i] * 3 / 8)))
+                dot(x+1, y + 1, ctx_res, getcolor(x+1, y + 1, ctx).map((o, i) => (i === 3 ? 255 : o + e[i] * 2 / 8)))
+            }
+            else if (alg === 3) {
+                dot(x + 1, y, ctx_res, getcolor(x+1, y, ctx).map((o, i)=>(i===3 ? 255 : o + e[i] * 8/42)))
+                dot(x + 2, y, ctx_res, getcolor(x+2, y, ctx).map((o, i)=>(i===3 ? 255 : o + e[i] * 4/42)))
+
+                dot(x - 2, y+1, ctx_res, getcolor(x-2, y+1, ctx).map((o, i)=>(i===3 ? 255 : o + e[i] * 2/42)))
+                dot(x - 1, y+1, ctx_res, getcolor(x-1, y+1, ctx).map((o, i)=>(i===3 ? 255 : o + e[i] * 4/42)))
+                dot(x, y+1, ctx_res, getcolor(x, y+1, ctx).map((o, i)=>(i===3 ? 255 : o + e[i] * 8/42)))
+                dot(x + 1, y+1, ctx_res, getcolor(x+1, y+1, ctx).map((o, i)=>(i===3 ? 255 : o + e[i] * 4/42)))
+                dot(x + 2, y+1, ctx_res, getcolor(x+2, y+1, ctx).map((o, i)=>(i===3 ? 255 : o + e[i] * 2/42)))
+
+                dot(x - 2, y+2, ctx_res, getcolor(x-2, y+2, ctx).map((o, i)=>(i===3 ? 255 : o + e[i] * 1/42)))
+                dot(x - 1, y+2, ctx_res, getcolor(x-1, y+2, ctx).map((o, i)=>(i===3 ? 255 : o + e[i] * 2/42)))
+                dot(x, y+2, ctx_res, getcolor(x, y+2, ctx).map((o, i)=>(i===3 ? 255 : o + e[i] * 4/42)))
+                dot(x + 1, y+2, ctx_res, getcolor(x+1, y+2, ctx).map((o, i)=>(i===3 ? 255 : o + e[i] * 2/42)))
+                dot(x + 2, y+2, ctx_res, getcolor(x+2, y+2, ctx).map((o, i)=>(i===3 ? 255 : o + e[i] * 1/42)))
+            }
+            else if (alg === 4) {
+                dot(x + 1, y, ctx_res, getcolor(x+1, y, ctx).map((o, i)=>(i===3 ? 255 : o + e[i] * 8/32)))
+                dot(x + 2, y, ctx_res, getcolor(x+2, y, ctx).map((o, i)=>(i===3 ? 255 : o + e[i] * 4/32)))
+
+                dot(x - 2, y+1, ctx_res, getcolor(x-2, y+1, ctx).map((o, i)=>(i===3 ? 255 : o + e[i] * 2/32)))
+                dot(x - 1, y+1, ctx_res, getcolor(x-1, y+1, ctx).map((o, i)=>(i===3 ? 255 : o + e[i] * 4/32)))
+                dot(x, y+1, ctx_res, getcolor(x, y+1, ctx).map((o, i)=>(i===3 ? 255 : o + e[i] * 8/32)))
+                dot(x + 1, y+1, ctx_res, getcolor(x+1, y+1, ctx).map((o, i)=>(i===3 ? 255 : o + e[i] * 4/32)))
+                dot(x + 2, y+1, ctx_res, getcolor(x+2, y+1, ctx).map((o, i)=>(i===3 ? 255 : o + e[i] * 2/32)))
+            }
+            else if (alg === 5) {
+                dot(x + 1, y, ctx_res, getcolor(x+1, y, ctx).map((o, i)=>(i===3 ? 255 : o + e[i] * 5/32)))
+                dot(x + 2, y, ctx_res, getcolor(x+2, y, ctx).map((o, i)=>(i===3 ? 255 : o + e[i] * 3/32)))
+
+                dot(x - 2, y+1, ctx_res, getcolor(x-2, y+1, ctx).map((o, i)=>(i===3 ? 255 : o + e[i] * 2/32)))
+                dot(x - 1, y+1, ctx_res, getcolor(x-1, y+1, ctx).map((o, i)=>(i===3 ? 255 : o + e[i] * 4/32)))
+                dot(x, y+1, ctx_res, getcolor(x, y+1, ctx).map((o, i)=>(i===3 ? 255 : o + e[i] * 5/32)))
+                dot(x + 1, y+1, ctx_res, getcolor(x+1, y+1, ctx).map((o, i)=>(i===3 ? 255 : o + e[i] * 4/32)))
+                dot(x + 2, y+1, ctx_res, getcolor(x+2, y+1, ctx).map((o, i)=>(i===3 ? 255 : o + e[i] * 2/32)))
+
+                dot(x - 1, y+2, ctx_res, getcolor(x-1, y+2, ctx).map((o, i)=>(i===3 ? 255 : o + e[i] * 2/32)))
+                dot(x, y+2, ctx_res, getcolor(x, y+2, ctx).map((o, i)=>(i===3 ? 255 : o + e[i] * 3/42)))
+                dot(x + 1, y+2, ctx_res, getcolor(x+1, y+2, ctx).map((o, i)=>(i===3 ? 255 : o + e[i] * 2/32)))
+            }
+            else if (alg === 6) {
+                dot(x + 1, y, ctx_res, getcolor(x+1, y, ctx).map((o, i)=>(i===3 ? 255 : o + e[i] * 4/16)))
+                dot(x + 2, y, ctx_res, getcolor(x+2, y, ctx).map((o, i)=>(i===3 ? 255 : o + e[i] * 3/16)))
+
+                dot(x - 2, y+1, ctx_res, getcolor(x-2, y+1, ctx).map((o, i)=>(i===3 ? 255 : o + e[i] * 1/16)))
+                dot(x - 1, y+1, ctx_res, getcolor(x-1, y+1, ctx).map((o, i)=>(i===3 ? 255 : o + e[i] * 2/16)))
+                dot(x, y+1, ctx_res, getcolor(x, y+1, ctx).map((o, i)=>(i===3 ? 255 : o + e[i] * 3/16)))
+                dot(x + 1, y+1, ctx_res, getcolor(x+1, y+1, ctx).map((o, i)=>(i===3 ? 255 : o + e[i] * 2/16)))
+                dot(x + 2, y+1, ctx_res, getcolor(x+2, y+1, ctx).map((o, i)=>(i===3 ? 255 : o + e[i] * 1/16)))
+            }
+            else if (alg === 7) {
+                dot(x + 1, y, ctx_res, getcolor(x + 1, y, ctx).map((o, i) => (i === 3 ? 255 : o + e[i] * 2 / 4)))
+                dot(x - 1, y + 1, ctx_res, getcolor(x - 1, y + 1, ctx).map((o, i) => (i === 3 ? 255 : o + e[i] * 1 / 4)))
+                dot(x, y + 1, ctx_res, getcolor(x, y + 1, ctx).map((o, i) => (i === 3 ? 255 : o + e[i] * 1 / 4)))
+            }
+
+        }
+    }
+
+    console.log("END")
 }
 
 
@@ -187,10 +315,10 @@ function onLoadHandler() {
     // lab(0,0,100,100, ctx)
 
     // cab(100,100,20, ctx)
-    // img_drow("img.png", ctx, ()=>{})
+    img_drow("img.png", ctx, ()=>{})
     split_view(ctx,ctx2)
 
-    img_drow("img.png", ctx)
+    // img_drow("img.png", ctx)
 
     // random_thresholding(ctx,ctx2)
     console.log(getcolor(0,0,ctx))
